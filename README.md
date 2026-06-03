@@ -1,6 +1,6 @@
 # Auto Batch Cover Cropper
 
-Auto Batch Cover Cropper centre-crops many images into square PNG files.
+Auto Batch Cover Cropper centre-crops many images into square images, helpful when adding custom album covers to music files.
 
 ## Features
 
