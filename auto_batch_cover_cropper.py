@@ -39,16 +39,12 @@ except ImportError as exc:
 
 
 APP_NAME = "Auto Batch Cover Cropper"
-ABOUT_TEXT = """TTF to WOFF2 Converter
+ABOUT_TEXT = """Auto Batch Cover Cropper
 © 2026 strailico5327
 
-Licensed under GNU GPLv3.
-Developed with assistance from OpenAI Codex."""
-WINDOW_BG = "#f3f3f3"
-SURFACE_BG = "#ffffff"
-BORDER_COLOR = "#d0d0d0"
-TEXT_COLOR = "#202020"
-MUTED_TEXT_COLOR = "#5f5f5f"
+Batch-crop images into square album covers with previews and export options.
+
+Licensed under GNU GPLv3."""
 PREVIEW_MAX_HEIGHT = 240
 PREVIEW_MIN_WIDTH = 140
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}
@@ -123,7 +119,7 @@ def image_for_preview(image: Image.Image, width: int, height: int, crop: bool = 
         image = center_crop_square(image)
     image = image.convert("RGBA")
     image.thumbnail((width, height), Image.Resampling.LANCZOS)
-    preview = Image.new("RGBA", (width, height), (255, 255, 255, 255))
+    preview = Image.new("RGBA", (width, height), (255, 255, 255, 0))
     x = (width - image.width) // 2
     y = (height - image.height) // 2
     preview.paste(image, (x, y), image)
@@ -330,12 +326,13 @@ class AutoBatchCoverCropper(QMainWindow):
         self.table.horizontalHeader().setSectionsClickable(True)
         self.table.horizontalHeader().sectionClicked.connect(self.sort_by_section)
         self.table.itemSelectionChanged.connect(self.update_selected_preview)
+        self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         header = self.table.horizontalHeader()
-        widths = (130, 180, 100, 110, 80, 520)
+        widths = (110, 165, 90, 100, 75)
         for index, width in enumerate(widths):
             header.setSectionResizeMode(index, QHeaderView.ResizeMode.Interactive)
             self.table.setColumnWidth(index, width)
-        header.setStretchLastSection(True)
+        header.setSectionResizeMode(COLUMN_KEYS.index("path"), QHeaderView.ResizeMode.Stretch)
         main_layout.addWidget(self.table, stretch=1)
 
         output_row = QHBoxLayout()
@@ -392,8 +389,8 @@ class AutoBatchCoverCropper(QMainWindow):
         self.setStyleSheet(
             """
             QWidget {
-                background: #f3f3f3;
-                color: #202020;
+                background: palette(window);
+                color: palette(window-text);
                 font-family: "Segoe UI Variable Text", "Segoe UI";
                 font-size: 10pt;
             }
@@ -403,15 +400,16 @@ class AutoBatchCoverCropper(QMainWindow):
                 font-weight: 700;
             }
             QLabel#previewLabel {
-                background: #ffffff;
-                border: 1px solid #d0d0d0;
+                background: palette(base);
+                border: 1px solid palette(mid);
             }
             QLabel#statusLabel {
-                color: #5f5f5f;
+                color: palette(window-text);
             }
             QTableWidget, QLineEdit, QComboBox {
-                background: #ffffff;
-                border: 1px solid #d0d0d0;
+                background: palette(base);
+                color: palette(text);
+                border: 1px solid palette(mid);
             }
             QPushButton {
                 padding: 8px 16px;
@@ -658,6 +656,8 @@ class AutoBatchCoverCropper(QMainWindow):
             for column, value in enumerate(values):
                 table_item = QTableWidgetItem(value)
                 table_item.setFlags(table_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                if value:
+                    table_item.setToolTip(value)
                 self.table.setItem(index, column, table_item)
         self.table.blockSignals(False)
 

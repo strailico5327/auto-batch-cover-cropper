@@ -34,11 +34,11 @@ auto-batch-cover-cropper/
   .gitignore
   LICENSE
   README.md
-  main.py
+  auto_batch_cover_cropper.py
   requirements.txt
 ```
 
-`main.py` is the application entry point.
+`auto_batch_cover_cropper.py` is the application entry point.
 
 ## Dependencies
 
@@ -60,13 +60,13 @@ python -m pip install -r requirements.txt
 Run:
 
 ```powershell
-python main.py
+python auto_batch_cover_cropper.py
 ```
 
 Check drag-drop:
 
 ```powershell
-python main.py --check-dnd
+python auto_batch_cover_cropper.py --check-dnd
 ```
 
 Drag-and-drop is provided by Qt, so no extra drag-drop package is required.
@@ -74,7 +74,7 @@ Drag-and-drop is provided by Qt, so no extra drag-drop package is required.
 ## Checks
 
 ```powershell
-python main.py --self-test
+python auto_batch_cover_cropper.py --self-test
 ```
 
 Smoke-test output is written to `smoke_test_output/`, which is ignored by Git.
