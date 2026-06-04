@@ -42,7 +42,7 @@ APP_NAME = "Auto Batch Cover Cropper"
 ABOUT_TEXT = """Auto Batch Cover Cropper
 © 2026 strailico5327
 
-Batch-crop images into square album covers with previews and export options.
+Batch-crop images into square covers.
 
 Licensed under GNU GPLv3."""
 PREVIEW_MAX_HEIGHT = 240

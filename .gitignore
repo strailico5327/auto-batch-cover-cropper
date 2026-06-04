@@ -18,6 +18,7 @@ dist/
 release/
 *.egg-info/
 *.exe
+*.spec
 
 # Test and coverage output
 .pytest_cache/
@@ -29,8 +30,10 @@ htmlcov/
 .vscode/
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Tool output
 smoke_test_output/
 square_crop_output/
 *.log
+/version_info.txt
