@@ -60,6 +60,7 @@ elements.cancelButton.addEventListener("click", () => {
   setStatus("Cancelling after the current image finishes...");
 });
 window.addEventListener("resize", schedulePreviewResize);
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", updateSelectedPreview);
 if ("ResizeObserver" in window) {
   new ResizeObserver(schedulePreviewResize).observe(document.querySelector(".preview-panel"));
 }
@@ -414,11 +415,15 @@ function drawPlaceholder(canvas, text) {
   const context = canvas.getContext("2d");
   const scale = canvasScale(canvas);
   context.clearRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "#65717d";
+  context.fillStyle = cssVariable("--muted");
   context.textAlign = "center";
   context.textBaseline = "middle";
   context.font = `${14 * scale}px "Segoe UI", system-ui, sans-serif`;
   context.fillText(text, canvas.width / 2, canvas.height / 2);
+}
+
+function cssVariable(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
 function schedulePreviewResize() {

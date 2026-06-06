@@ -3,7 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#d86b24">
+    <meta name="theme-color" content="#f6f7f5" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#101316" media="(prefers-color-scheme: dark)">
     <title>Auto Batch Cover Cropper</title>
     <link rel="icon" type="image/png" sizes="32x32" href="assets/6-necomini-orange_32x.png">
     <link rel="icon" type="image/png" sizes="128x128" href="assets/6-necomini-orange_128x.png">
@@ -27,12 +28,27 @@
             <input id="fileInput" type="file" accept="image/*,.bmp,.tif,.tiff" multiple hidden>
             <input id="folderInput" type="file" accept="image/*,.bmp,.tif,.tiff" webkitdirectory multiple hidden>
             <div class="drop-copy">
-              <span class="drop-symbol" aria-hidden="true">+</span>
+              <span class="drop-symbol" aria-hidden="true"></span>
               <h2 id="dropTitle">Drop images or folders</h2>
               <p>Click file or folder controls, or drop files here.</p>
               <div class="drop-actions">
-                <button id="addFilesButton" class="secondary-button" type="button">Choose files</button>
-                <button id="addFolderButton" class="secondary-button" type="button">Choose folder</button>
+                <button id="addFilesButton" class="secondary-button" type="button">
+                  <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"></path>
+                    <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
+                    <path d="M3 15h6"></path>
+                    <path d="M6 12v6"></path>
+                  </svg>
+                  <span>Add files</span>
+                </button>
+                <button id="addFolderButton" class="secondary-button" type="button">
+                  <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M12 10v6"></path>
+                    <path d="M9 13h6"></path>
+                    <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
+                  </svg>
+                  <span>Add folder</span>
+                </button>
               </div>
             </div>
           </div>
@@ -73,11 +89,6 @@
             </label>
           </div>
 
-          <div class="button-stack" aria-label="Queue actions">
-            <button id="removeButton" class="secondary-button" type="button">Remove selected</button>
-            <button id="clearButton" class="secondary-button" type="button">Clear queue</button>
-          </div>
-
           <div class="action-row">
             <button class="primary-button" id="startButton" type="button">Start conversion</button>
             <button id="cancelButton" class="secondary-button" type="button" disabled>Cancel</button>
@@ -93,6 +104,10 @@
             <div>
               <h2 id="queueTitle">Conversion Queue</h2>
               <p>Images are cropped locally in your browser.</p>
+            </div>
+            <div class="queue-actions" aria-label="Queue actions">
+              <button id="removeButton" class="secondary-button" type="button">Remove selected</button>
+              <button id="clearButton" class="secondary-button" type="button">Clear queue</button>
             </div>
           </div>
 
