@@ -1,0 +1,26 @@
+{
+  "name": "Auto Batch Cover Cropper",
+  "short_name": "Cover Cropper",
+  "description": "Batch center-crop images into square covers in your browser.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#1f7a68",
+  "icons": [
+    {
+      "src": "assets/6-necomini-orange_128x.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/6-necomini-orange_180x.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/6-necomini-orange_192x.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
