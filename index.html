@@ -30,7 +30,6 @@
             <div class="drop-copy">
               <span class="drop-symbol" aria-hidden="true"></span>
               <h2 id="dropTitle">Drop images or folders</h2>
-              <p>Click file or folder controls, or drop files here.</p>
               <div class="drop-actions">
                 <button id="addFilesButton" class="secondary-button" type="button">
                   <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -55,23 +54,13 @@
 
           <div class="preview-panel" aria-label="Selected image preview">
             <div class="preview-card">
-              <span>Before</span>
               <canvas class="preview-canvas" id="beforeCanvas" width="280" height="240"></canvas>
-            </div>
-            <div class="preview-card">
-              <span>After</span>
-              <canvas class="preview-canvas" id="afterCanvas" width="240" height="240"></canvas>
             </div>
           </div>
         </section>
 
         <section class="controls-panel" aria-label="Crop controls">
           <div class="control-group">
-            <span class="label">Output settings</span>
-            <label>
-              <span>Suffix</span>
-              <input id="suffixInput" type="text" value="_square" spellcheck="false">
-            </label>
             <label>
               <span>Format</span>
               <select id="formatSelect">
@@ -80,22 +69,14 @@
                 <option value="Original">Original</option>
               </select>
             </label>
-            <label>
-              <span>Output</span>
-              <select id="outputModeSelect">
-                <option value="auto">Auto download</option>
-                <option value="folder">Save to folder if supported</option>
-              </select>
-            </label>
           </div>
 
           <div class="action-row">
             <button class="primary-button" id="startButton" type="button">Start conversion</button>
-            <button id="cancelButton" class="secondary-button" type="button" disabled>Cancel</button>
+            <button id="downloadButton" class="secondary-button" type="button" disabled>Download</button>
             <div class="progress-shell" aria-hidden="true">
               <div class="progress-bar" id="progressBar"></div>
             </div>
-            <p class="status" id="statusLabel" role="status">Waiting for images</p>
           </div>
         </section>
 
@@ -107,7 +88,6 @@
             </div>
             <div class="queue-actions" aria-label="Queue actions">
               <button id="removeButton" class="secondary-button" type="button">Remove selected</button>
-              <button id="clearButton" class="secondary-button" type="button">Clear queue</button>
             </div>
           </div>
 
@@ -115,12 +95,14 @@
             <table>
               <thead>
                 <tr>
+                  <th class="check-column" scope="col">
+                    <input id="selectAllCheckbox" type="checkbox" aria-label="Select all images">
+                  </th>
                   <th scope="col" data-sort="status">Status</th>
                   <th scope="col" data-sort="name">Name</th>
                   <th scope="col" data-sort="size">Size</th>
                   <th scope="col" data-sort="fileSize">File Size</th>
                   <th scope="col" data-sort="format">Format</th>
-                  <th scope="col" data-sort="path">Path</th>
                 </tr>
               </thead>
               <tbody id="queueBody">

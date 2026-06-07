@@ -14,15 +14,12 @@ The Web version supports:
 - Add a folder with the browser folder picker.
 - Drag image files or folders onto the page.
 - Preview the selected image before and after center-cropping.
-- Sort the queue table by status, name, dimensions, file size, format, or path.
+- Sort the queue table by status, name, dimensions, file size, or format.
 - Choose PNG, JPG, or Original output.
-- Choose a filename suffix.
-- Download one converted image as a single file, or multiple converted images as `square_crop_output.zip`.
-- Save directly to a chosen folder in browsers that support the File System Access API.
+- Convert the queue, then download one converted image as a single file or multiple converted images as `square_crop_output.zip`.
 
 Browser security limits differ from the desktop app: the Web version cannot delete source
-files, and it cannot silently write next to source files. ZIP download is the portable
-default output path.
+files, and it cannot silently write next to source files.
 
 ## License
 

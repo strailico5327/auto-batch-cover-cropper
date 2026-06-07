@@ -11,31 +11,28 @@ const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "bmp", "tif", "t
 const CANVAS_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const state = {
   queue: [],
+  checkedIds: new Set(),
+  outputEntries: [],
   selectedId: null,
   sortColumn: "",
   sortReverse: false,
   isProcessing: false,
-  cancelRequested: false,
 };
 
 const elements = {
   beforeCanvas: document.querySelector("#beforeCanvas"),
-  afterCanvas: document.querySelector("#afterCanvas"),
   addFilesButton: document.querySelector("#addFilesButton"),
   addFolderButton: document.querySelector("#addFolderButton"),
   removeButton: document.querySelector("#removeButton"),
-  clearButton: document.querySelector("#clearButton"),
   startButton: document.querySelector("#startButton"),
-  cancelButton: document.querySelector("#cancelButton"),
+  downloadButton: document.querySelector("#downloadButton"),
   fileInput: document.querySelector("#fileInput"),
   folderInput: document.querySelector("#folderInput"),
   dropZone: document.querySelector("#dropZone"),
   queueBody: document.querySelector("#queueBody"),
-  suffixInput: document.querySelector("#suffixInput"),
+  selectAllCheckbox: document.querySelector("#selectAllCheckbox"),
   formatSelect: document.querySelector("#formatSelect"),
-  outputModeSelect: document.querySelector("#outputModeSelect"),
   progressBar: document.querySelector("#progressBar"),
-  statusLabel: document.querySelector("#statusLabel"),
 };
 
 const crcTable = buildCrcTable();
@@ -53,12 +50,10 @@ elements.folderInput.addEventListener("change", () => {
   elements.folderInput.value = "";
 });
 elements.removeButton.addEventListener("click", removeSelected);
-elements.clearButton.addEventListener("click", clearQueue);
 elements.startButton.addEventListener("click", startConversion);
-elements.cancelButton.addEventListener("click", () => {
-  state.cancelRequested = true;
-  setStatus("Cancelling after the current image finishes...");
-});
+elements.downloadButton.addEventListener("click", downloadOutputs);
+elements.selectAllCheckbox.addEventListener("change", toggleAllChecked);
+elements.formatSelect.addEventListener("change", clearOutputEntries);
 window.addEventListener("resize", schedulePreviewResize);
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", updateSelectedPreview);
 if ("ResizeObserver" in window) {
@@ -120,7 +115,6 @@ async function addFiles(files) {
       file,
       key,
       name: file.name,
-      path: file.webkitRelativePath || file.name,
       fileSize: file.size,
       format: formatName(file),
       width: 0,
@@ -152,20 +146,23 @@ async function addFiles(files) {
     updateSelectedPreview();
   }
 
+  if (added) {
+    clearOutputEntries();
+  }
   renderQueue();
   setStatus(added ? `Added ${added} image(s) to the queue.` : "No new images found.");
 }
 
 function removeSelected() {
-  if (state.isProcessing || state.selectedId === null) {
+  if (state.isProcessing || !state.checkedIds.size) {
     return;
   }
-  const index = state.queue.findIndex((item) => item.id === state.selectedId);
-  if (index === -1) {
-    return;
+  state.queue = state.queue.filter((item) => !state.checkedIds.has(item.id));
+  state.checkedIds.clear();
+  if (!state.queue.some((item) => item.id === state.selectedId)) {
+    state.selectedId = state.queue[0]?.id ?? null;
   }
-  state.queue.splice(index, 1);
-  state.selectedId = state.queue[Math.min(index, state.queue.length - 1)]?.id ?? null;
+  clearOutputEntries();
   renderQueue();
   updateSelectedPreview();
   setStatus("Selected image removed.");
@@ -173,11 +170,13 @@ function removeSelected() {
 
 function clearQueue() {
   if (state.isProcessing) {
-    setStatus("Cancel or wait for conversion to finish before clearing.");
+    setStatus("Wait for conversion to finish before clearing.");
     return;
   }
   state.queue = [];
+  state.checkedIds.clear();
   state.selectedId = null;
+  clearOutputEntries();
   renderQueue();
   clearPreviews();
   setProgress(0);
@@ -190,6 +189,7 @@ function renderQueue() {
     const row = document.createElement("tr");
     row.innerHTML = '<td colspan="6" class="empty-cell">No images queued.</td>';
     elements.queueBody.append(row);
+    syncQueueControls();
     return;
   }
 
@@ -198,13 +198,22 @@ function renderQueue() {
     row.className = item.id === state.selectedId ? "selected" : "";
     row.dataset.id = String(item.id);
     row.innerHTML = `
-      <td title="${escapeHtml(item.status)}">${escapeHtml(item.status)}</td>
+      <td class="check-cell">
+        <input type="checkbox" aria-label="Select ${escapeHtml(item.name)}" ${state.checkedIds.has(item.id) ? "checked" : ""}>
+      </td>
+      <td title="${escapeHtml(item.status)}">
+        <span class="status-pill ${statusClass(item.status)}">${escapeHtml(statusBadgeText(item.status))}</span>
+      </td>
       <td title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</td>
       <td>${item.width && item.height ? `${item.width}x${item.height}` : "Unknown"}</td>
       <td>${formatFileSize(item.fileSize)}</td>
       <td>${escapeHtml(item.format)}</td>
-      <td title="${escapeHtml(item.path)}">${escapeHtml(item.path)}</td>
     `;
+    const checkbox = row.querySelector("input[type='checkbox']");
+    checkbox.addEventListener("click", (event) => event.stopPropagation());
+    checkbox.addEventListener("change", () => {
+      setItemChecked(item.id, checkbox.checked);
+    });
     row.addEventListener("click", () => {
       state.selectedId = item.id;
       renderQueue();
@@ -212,6 +221,62 @@ function renderQueue() {
     });
     elements.queueBody.append(row);
   }
+  syncQueueControls();
+}
+
+function setItemChecked(id, checked) {
+  if (checked) {
+    state.checkedIds.add(id);
+  } else {
+    state.checkedIds.delete(id);
+  }
+  syncQueueControls();
+}
+
+function toggleAllChecked() {
+  if (elements.selectAllCheckbox.checked) {
+    state.checkedIds = new Set(state.queue.map((item) => item.id));
+  } else {
+    state.checkedIds.clear();
+  }
+  renderQueue();
+}
+
+function syncQueueControls() {
+  const total = state.queue.length;
+  const checkedCount = state.checkedIds.size;
+  const allChecked = total > 0 && checkedCount === total;
+  const downloadableCount = downloadableEntriesForChecked().length;
+
+  elements.selectAllCheckbox.checked = allChecked;
+  elements.selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < total;
+  elements.selectAllCheckbox.disabled = state.isProcessing || total === 0;
+  elements.removeButton.textContent = allChecked ? "Clear" : "Remove selected";
+  elements.removeButton.disabled = state.isProcessing || checkedCount === 0;
+  elements.downloadButton.disabled = state.isProcessing || downloadableCount === 0;
+}
+
+function statusBadgeText(status) {
+  if (status.startsWith("Done")) {
+    return "Done";
+  }
+  if (status.startsWith("Failed")) {
+    return "Failed";
+  }
+  return status;
+}
+
+function statusClass(status) {
+  if (status.startsWith("Done")) {
+    return "status-done";
+  }
+  if (status.startsWith("Failed")) {
+    return "status-failed";
+  }
+  if (status.startsWith("Converting")) {
+    return "status-active";
+  }
+  return "status-queued";
 }
 
 function sortQueue(column) {
@@ -246,8 +311,8 @@ async function updateSelectedPreview() {
 
   try {
     const image = await loadImage(item.file);
-    drawContain(elements.beforeCanvas, image);
-    drawCroppedSquare(elements.afterCanvas, image);
+    syncPreviewCanvasSizes();
+    drawSourceWithCropMask(elements.beforeCanvas, image);
   } catch (error) {
     clearPreviews();
     setStatus(`Could not preview selected image: ${error.message}`);
@@ -265,51 +330,26 @@ async function startConversion() {
   }
 
   state.isProcessing = true;
-  state.cancelRequested = false;
+  state.outputEntries = [];
   setProcessingControls(true);
   setProgress(0);
 
-  const suffix = elements.suffixInput.value;
   const requestedFormat = elements.formatSelect.value;
-  const outputMode = elements.outputModeSelect.value;
   const outputNames = new Set();
   const zipEntries = [];
-  let outputDirectory = null;
   let converted = 0;
   let failed = 0;
 
-  if (outputMode === "folder" && "showDirectoryPicker" in window) {
-    try {
-      outputDirectory = await window.showDirectoryPicker({ mode: "readwrite" });
-    } catch (error) {
-      state.isProcessing = false;
-      setProcessingControls(false);
-      setStatus(`Output folder was not selected: ${error.message}`);
-      return;
-    }
-  }
-
   for (let index = 0; index < state.queue.length; index += 1) {
-    if (state.cancelRequested) {
-      break;
-    }
-
     const item = state.queue[index];
     try {
       item.status = "Converting";
       renderQueue();
       const result = await cropFile(item.file, requestedFormat);
-      const outputName = uniqueOutputName(item.name, suffix, result.extension, outputNames);
+      const outputName = uniqueOutputName(item.name, result.extension, outputNames);
       const bytes = new Uint8Array(await result.blob.arrayBuffer());
 
-      if (outputDirectory) {
-        const handle = await outputDirectory.getFileHandle(outputName, { create: true });
-        const writable = await handle.createWritable();
-        await writable.write(bytes);
-        await writable.close();
-      } else {
-        zipEntries.push({ name: outputName, bytes, mimeType: result.blob.type });
-      }
+      zipEntries.push({ id: item.id, name: outputName, bytes, mimeType: result.blob.type });
 
       item.status = `Done -> ${outputName}`;
       converted += 1;
@@ -324,18 +364,30 @@ async function startConversion() {
     await yieldToBrowser();
   }
 
-  if (!outputDirectory && zipEntries.length === 1) {
-    downloadBlob(new Blob([zipEntries[0].bytes], { type: zipEntries[0].mimeType }), zipEntries[0].name);
-  } else if (!outputDirectory && zipEntries.length > 1) {
-    const zipBlob = createZip(zipEntries);
-    downloadBlob(zipBlob, "square_crop_output.zip");
+  state.outputEntries = zipEntries;
+
+  setStatus(`Converted ${converted} image(s).${failed ? ` Failed: ${failed}.` : ""}`);
+  state.isProcessing = false;
+  setProcessingControls(false);
+}
+
+function downloadOutputs() {
+  const entries = downloadableEntriesForChecked();
+  if (!entries.length) {
+    return;
+  }
+  if (entries.length === 1) {
+    const entry = entries[0];
+    downloadBlob(new Blob([entry.bytes], { type: entry.mimeType }), entry.name);
+    return;
   }
 
-  const cancelled = state.cancelRequested ? "Cancelled. " : "";
-  setStatus(`${cancelled}Converted ${converted} image(s).${failed ? ` Failed: ${failed}.` : ""}`);
-  state.isProcessing = false;
-  state.cancelRequested = false;
-  setProcessingControls(false);
+  const zipBlob = createZip(entries);
+  downloadBlob(zipBlob, "square_crop_output.zip");
+}
+
+function downloadableEntriesForChecked() {
+  return state.outputEntries.filter((entry) => state.checkedIds.has(entry.id));
 }
 
 async function cropFile(file, requestedFormat) {
@@ -379,7 +431,7 @@ function outputMimeAndExtension(file, requestedFormat) {
   return { mimeType: "image/png", extension: "png" };
 }
 
-function drawContain(canvas, image) {
+function drawSourceWithCropMask(canvas, image) {
   const context = canvas.getContext("2d");
   const width = canvas.width;
   const height = canvas.height;
@@ -392,23 +444,22 @@ function drawContain(canvas, image) {
   const x = Math.round((width - drawWidth) / 2);
   const y = Math.round((height - drawHeight) / 2);
   context.drawImage(image, x, y, drawWidth, drawHeight);
-}
 
-function drawCroppedSquare(canvas, image) {
-  const context = canvas.getContext("2d");
-  const width = canvas.width;
-  const sourceWidth = image.naturalWidth || image.width;
-  const sourceHeight = image.naturalHeight || image.height;
-  const size = Math.min(sourceWidth, sourceHeight);
-  const sx = Math.floor((sourceWidth - size) / 2);
-  const sy = Math.floor((sourceHeight - size) / 2);
-  context.clearRect(0, 0, width, width);
-  context.drawImage(image, sx, sy, size, size, 0, 0, width, width);
+  const cropSize = Math.min(sourceWidth, sourceHeight);
+  const cropX = x + ((sourceWidth - cropSize) / 2) * scale;
+  const cropY = y + ((sourceHeight - cropSize) / 2) * scale;
+  const cropDrawSize = cropSize * scale;
+
+  context.fillStyle = "rgba(0, 0, 0, 0.48)";
+  context.fillRect(x, y, drawWidth, Math.max(0, cropY - y));
+  context.fillRect(x, cropY + cropDrawSize, drawWidth, Math.max(0, y + drawHeight - cropY - cropDrawSize));
+  context.fillRect(x, cropY, Math.max(0, cropX - x), cropDrawSize);
+  context.fillRect(cropX + cropDrawSize, cropY, Math.max(0, x + drawWidth - cropX - cropDrawSize), cropDrawSize);
 }
 
 function clearPreviews() {
+  syncPreviewCanvasSizes();
   drawPlaceholder(elements.beforeCanvas, "No selection");
-  drawPlaceholder(elements.afterCanvas, "No selection");
 }
 
 function drawPlaceholder(canvas, text) {
@@ -429,15 +480,13 @@ function cssVariable(name) {
 function schedulePreviewResize() {
   window.clearTimeout(previewResizeTimer);
   previewResizeTimer = window.setTimeout(() => {
-    if (syncPreviewCanvasSizes()) {
-      updateSelectedPreview();
-    }
+    updateSelectedPreview();
   }, 50);
 }
 
 function syncPreviewCanvasSizes() {
   let changed = false;
-  for (const canvas of [elements.beforeCanvas, elements.afterCanvas]) {
+  for (const canvas of [elements.beforeCanvas]) {
     const rect = canvas.getBoundingClientRect();
     const ratio = window.devicePixelRatio || 1;
     const width = Math.max(1, Math.round(rect.width * ratio));
@@ -613,12 +662,12 @@ function crc32(bytes) {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-function uniqueOutputName(fileName, suffix, extension, usedNames) {
+function uniqueOutputName(fileName, extension, usedNames) {
   const stem = fileName.replace(/\.[^.]*$/, "");
-  let candidate = `${stem}${suffix}.${extension}`;
+  let candidate = `${stem}.${extension}`;
   let counter = 2;
   while (usedNames.has(candidate.toLowerCase())) {
-    candidate = `${stem}${suffix}_${counter}.${extension}`;
+    candidate = `${stem}_${counter}.${extension}`;
     counter += 1;
   }
   usedNames.add(candidate.toLowerCase());
@@ -642,15 +691,17 @@ function selectedItem() {
 
 function setProcessingControls(processing) {
   elements.startButton.disabled = processing;
-  elements.clearButton.disabled = processing;
   elements.addFilesButton.disabled = processing;
   elements.addFolderButton.disabled = processing;
-  elements.removeButton.disabled = processing;
-  elements.cancelButton.disabled = !processing;
+  syncQueueControls();
 }
 
-function setStatus(message) {
-  elements.statusLabel.textContent = message;
+function setStatus(_message) {
+}
+
+function clearOutputEntries() {
+  state.outputEntries = [];
+  syncQueueControls();
 }
 
 function setProgress(value) {
